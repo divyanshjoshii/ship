@@ -120,7 +120,15 @@ If the command is genuinely absent, skip in silence and do not suggest installin
 
 A diagram is needed when any one of these is true:
 
-- A new top-level directory appeared, or one was removed or renamed
+- A new top-level directory appeared, or one was removed or renamed, **and it contains source files**. A `docs/`, `.github/` or `.vscode/` directory changes no architecture, so check before treating it as structure:
+
+  ```bash
+  git status --short | grep '^??' | cut -c4- | while read -r p; do
+    [ -d "$p" ] && echo "$p: $(git ls-files -o --exclude-standard "$p" | grep -cE '\.(ts|tsx|js|jsx|py|go|rs|java|kt|rb|php|cs|c|h|cpp|swift)$')"
+  done
+  ```
+
+  A count of zero means it is not a structural change.
 - A new module, package or entry point was added
 - A dependency was added or dropped
 - Step 4 reported a change reaching across three or more modules
