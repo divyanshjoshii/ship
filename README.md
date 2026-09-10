@@ -44,6 +44,33 @@ npx skills add divyanshjoshii/ship -g
 
 The `-g` makes it available in every project, including ones you haven't created yet.
 
+## Commit trailers
+
+Coding agents commonly append a `Co-Authored-By` trailer to commit messages. If you'd rather your history didn't carry tool attribution, that's a git setting rather than anything this skill does — a `commit-msg` hook strips it locally, from every commit, whatever wrote it.
+
+Run these two once. Windows users want Git Bash, not PowerShell.
+
+```bash
+mkdir -p ~/.githooks && cat > ~/.githooks/commit-msg <<'EOF'
+#!/bin/sh
+grep -v -i '^Co-authored-by:' "$1" > "$1.tmp" && mv "$1.tmp" "$1"
+EOF
+```
+
+```bash
+chmod +x ~/.githooks/commit-msg && git config --global core.hooksPath ~/.githooks
+```
+
+That covers every repository on the machine, permanently.
+
+To check it took, commit something with the line in it and read back what saved:
+
+```bash
+git log -1 --format=%B
+```
+
+Two things to know. It only affects commits made from now on — anything already in your history keeps the line. And `core.hooksPath` set globally overrides per-repository hooks, so a project using Husky will take that folder over and the hook stops applying there; add the same lines to the project's Husky hooks if you need it.
+
 ## Optional companions
 
 `ship` works on its own. These make it better where they're present, and it skips them silently where they aren't:
@@ -55,6 +82,10 @@ The `-g` makes it available in every project, including ones you haven't created
 | [humanizer](https://github.com/blader/humanizer) | Step 6 — commit messages that read like you wrote them |
 
 It won't prompt you to install any of these mid-commit. That's a separate decision.
+
+## Pairs well with
+
+[groundwork](https://github.com/divyanshjoshii/groundwork) — interviews you once at project start and writes the rules file every later session reads. Groundwork sets the rules; ship checks your work against them before it reaches GitHub.
 
 ## Requirements
 
