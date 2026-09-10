@@ -61,23 +61,87 @@ Never stage a file the user has not seen listed.
 
 ## Step 4 — What does this change affect?
 
-Only when `code-review-graph` is installed in this repository (`.code-review-graph/` exists):
+Runs whenever code-review-graph is on the machine. **Do not ask the user whether to use it.**
+
+**Resolve the command first. Do not assume it is on PATH** — a `pip install --user` on Windows puts it in a scripts directory that usually is not:
 
 ```bash
-code-review-graph impact
+CRG="code-review-graph"; command -v code-review-graph >/dev/null 2>&1 || CRG="python -m code_review_graph"
+$CRG --version >/dev/null 2>&1 || CRG=""
 ```
 
-Report the blast radius in one line — which other files depend on what changed, and whether anything important sits downstream. Skip in silence when the tool is absent. Never suggest installing it mid-flow; that is a separate conversation.
+An empty `$CRG` means it is genuinely absent: skip step 4 in silence. Never conclude it is missing from a bare `command -v` failure.
+
+**First, check the repository has source code to graph.** It parses code, not prose, so a docs-only or config-only repository produces an empty graph and the whole step is wasted:
+
+```bash
+git ls-files | grep -cE '\.(ts|tsx|js|jsx|py|go|rs|java|kt|rb|php|cs|c|h|cpp|swift)$'
+```
+
+A count of zero means skip step 4 entirely and do not build.
+
+**If `.code-review-graph/` is missing, build it now.** Say what you are doing, then run it. Once per repository.
+
+```bash
+$CRG install --platform claude-code --no-hooks --no-skills --no-instructions -y
+$CRG build
+```
+
+**Then gitignore what it wrote.** `install` adds `.code-review-graph/` on its own but leaves `.mcp.json`, which holds absolute paths to this machine and must never be committed:
+
+```bash
+grep -qxF '.mcp.json' .gitignore 2>/dev/null || echo '.mcp.json' >> .gitignore
+```
+
+If the build reports zero nodes anyway, say so once, skip the impact call, and do not rebuild on later runs.
+
+`--no-instructions` matters: without it the tool writes into `CLAUDE.md`, which belongs to the project's own rules. `--no-skills` keeps it from adding to the skill listing.
+
+Skip the build and say so when the repository is very large (roughly 3000+ source files) or the user is mid-task and waiting; offer to build it later instead. A first build on a big repository is slow, and stalling a commit for it is worse than going without.
+
+Then, every run:
+
+```bash
+$CRG update --brief
+$CRG impact
+```
+
+`update --brief` re-parses only what changed, so the graph reflects this commit rather than the state at build time.
+
+`impact` returns verbose JSON, one object per edge. **Summarise it; never paste it into the conversation.** Dumping the raw output floods the context the tool exists to protect.
+
+Report the blast radius in one line: how many nodes are impacted, which other files depend on what changed, and whether anything important sits downstream.
+
+If the command is genuinely absent, skip in silence and do not suggest installing it mid-flow.
 
 ## Step 5 — Diagrams, only when earned
 
-Check whether the structure actually moved: new top-level directories, a new module, a dependency added or dropped.
+**Decide this yourself. Do not ask the user whether a diagram is needed.**
 
-If it did, and the repository has a diagram in `README.md` or `docs/architecture.md`, say so and offer to redraw it with the `archify` skill:
+A diagram is needed when any one of these is true:
 
-> You added a `search/` module. The diagram in the README doesn't show it. Redraw?
+- A new top-level directory appeared, or one was removed or renamed
+- A new module, package or entry point was added
+- A dependency was added or dropped
+- Step 4 reported a change reaching across three or more modules
+- A diagram already exists in `README.md` or `docs/architecture.md` and no longer matches what is there
 
-**Do not offer this on an ordinary commit.** A bug fix does not change the architecture, and a prompt every time trains the user to say no without reading.
+It is not needed for a bug fix, a documentation edit, a config tweak, a dependency version bump, or a change confined to one file. Most commits are in this group, so most runs skip this step.
+
+When step 4 built a graph, use it to answer the question rather than guessing:
+
+```bash
+$CRG architecture
+```
+
+**When a diagram is needed, generate it rather than asking whether to.** Show the result before it is committed. Two cases:
+
+- The repository already has a diagram in `README.md` or `docs/architecture.md`. Redraw it so it matches reality.
+- It has no diagram at all and structure moved. Create one and put it in the README.
+
+Do not run this on an ordinary commit. A bug fix does not change the architecture, and generating a diagram every time is slow and trains the user to ignore it.
+
+**Pick the right tool for the picture.** A small flow diagram inside a README is usually a mermaid block: GitHub renders mermaid natively, so nobody needs anything installed to see it. Invoke the `archify` skill when the diagram is a real architecture, dataflow, sequence or lifecycle picture that earns the validation and the export formats. Say which you chose and why.
 
 `/ship docs` runs this step alone, for when the user wants documentation refreshed without committing code.
 
@@ -85,7 +149,13 @@ If it did, and the repository has a diagram in `README.md` or `docs/architecture
 
 Draft a subject line under about 60 characters, in plain past-tense language describing what changed and why. Add a body only when the reason is not obvious from the subject.
 
-Then run it through the `humanizer` skill. This applies to the commit message, and to any pull request description, README text or documentation prose produced in this flow. It does not apply to code.
+**Now invoke the `humanizer` skill with the Skill tool. Actually call it.**
+
+Writing carefully by hand and describing the result as humanized is the failure mode this step exists to prevent, and it is easy to do without noticing. A hand-written pass reliably leaves dashes used as connectors, a closing line that repeats the sentence before it, and passive openers. Those are exactly what the skill is looking for.
+
+Do not report that the humanizer ran unless you invoked it.
+
+It applies to the commit message, and to any pull request description, README text or documentation prose produced in this flow. It does not apply to code, file paths, commands or link targets.
 
 Take the voice from `docs/standards.md` when the project has one.
 
@@ -108,7 +178,7 @@ Degrade quietly. A missing tool is not a problem to raise.
 | Missing | Do |
 |---|---|
 | `code-review-graph` | Skip step 4 |
-| `archify` | Skip step 5 |
+| `archify` | Use a mermaid block for step 5 instead |
 | `humanizer` | Write the message plainly and say so once |
 | `gh` | Use plain `git`; only repository creation needs `gh` |
 
