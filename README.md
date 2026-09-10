@@ -2,7 +2,7 @@
 
 A Claude Code skill for getting work onto GitHub without surprises.
 
-Every step is shown before it happens, and nothing reaches GitHub until you say yes to that specific push.
+You see every step before it happens, and nothing reaches GitHub until you say yes to that specific push.
 
 ## Why
 
@@ -29,7 +29,7 @@ When you type `/ship`, it works through seven steps:
 ## What it won't do
 
 - Push without a yes for that specific push
-- Push to `upstream` — a fork's original belongs to someone else
+- Push to `upstream`, because a fork's original belongs to someone else
 - Force-push or edit a workflow without a typed confirmation
 - Commit a file you haven't seen listed
 - Rewrite a collaborator's commits
@@ -46,7 +46,7 @@ The `-g` makes it available in every project, including ones you haven't created
 
 ## Commit trailers
 
-Coding agents commonly append a `Co-Authored-By` trailer to commit messages. If you'd rather your history didn't carry tool attribution, that's a git setting rather than anything this skill does — a `commit-msg` hook strips it locally, from every commit, whatever wrote it.
+Coding agents commonly append a `Co-Authored-By` trailer to commit messages. Removing it is a git setting rather than something this skill controls. A `commit-msg` hook strips the line locally, on every commit, whatever wrote it.
 
 Run these two once. Windows users want Git Bash, not PowerShell.
 
@@ -69,7 +69,7 @@ To check it took, commit something with the line in it and read back what saved:
 git log -1 --format=%B
 ```
 
-Two things to know. It only affects commits made from now on — anything already in your history keeps the line. And `core.hooksPath` set globally overrides per-repository hooks, so a project using Husky will take that folder over and the hook stops applying there; add the same lines to the project's Husky hooks if you need it.
+Two things to know. It only affects commits made from now on, so anything already in your history keeps the line. And setting `core.hooksPath` globally overrides per-repository hooks, so a project using Husky will take that folder over and the hook stops applying there. Add the same lines to the project's Husky hooks if you need it.
 
 ## Optional companions
 
@@ -77,15 +77,15 @@ Two things to know. It only affects commits made from now on — anything alread
 
 | Tool | Adds |
 |---|---|
-| [code-review-graph](https://github.com/tirth8205/code-review-graph) | Step 4 — what your change actually affects |
-| [archify](https://github.com/tt-a1i/archify) | Step 5 — diagram regeneration |
-| [humanizer](https://github.com/blader/humanizer) | Step 6 — commit messages that read like you wrote them |
+| [code-review-graph](https://github.com/tirth8205/code-review-graph) | Step 4: what your change actually affects |
+| [archify](https://github.com/tt-a1i/archify) | Step 5: diagram regeneration |
+| [humanizer](https://github.com/blader/humanizer) | Step 6: commit messages that read like you wrote them |
 
-It won't prompt you to install any of these mid-commit. That's a separate decision.
+It won't prompt you to install any of these mid-commit.
 
 ## Pairs well with
 
-[groundwork](https://github.com/divyanshjoshii/groundwork) — interviews you once at project start and writes the rules file every later session reads. Groundwork sets the rules; ship checks your work against them before it reaches GitHub.
+[groundwork](https://github.com/divyanshjoshii/groundwork) interviews you once at project start and writes the rules file every later session reads. Groundwork sets the rules, and ship checks your work against them before it reaches GitHub.
 
 ## Requirements
 
