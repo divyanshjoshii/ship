@@ -249,9 +249,9 @@ Theme and stamp every diagram, new and old, with what `palette.mjs` prints.
 
 ### 3. Humanize the prose
 
-Invoke the `humanizer` skill in file mode on `README.md` and the prose files in `docs/`. It changes prose only. Code blocks, commands, paths and link targets stay exactly as they are, and it must not add a claim, number or feature that was not already there.
+Invoke the `humanizer` skill in file mode on `README.md`, the prose files in `docs/`, and any other markdown at the repository root written for people, such as a design write-up or a problem statement. Find them with `git ls-files '*.md'`. It changes prose only. Code blocks, commands, paths and link targets stay exactly as they are, and it must not add a claim, number or feature that was not already there.
 
-Leave alone the files whose job is to be obeyed or kept as written: `CLAUDE.md`, `AGENTS.md`, `docs/standards.md`, `docs/changes.md` (append-only history), `docs/handoffs/`, `LICENSE`, anything under `.github/`, and prompt files or anything else written for a tool or model to read, such as `docs/IMAGE-PROMPTS.md`. Rewording a prompt changes what it produces.
+Leave alone the files whose job is to be obeyed or kept as written: `CLAUDE.md`, `AGENTS.md`, `docs/standards.md`, `docs/changes.md` (append-only history), `docs/handoffs/`, `LICENSE`, anything under `.github/`, and prompt files or anything else written for a tool or model to read, such as `docs/IMAGE-PROMPTS.md`. Rewording a prompt changes what it produces. A file that opens with a tool's marker comment, such as `<!-- impeccable:product-schema 1 -->` in a `PRODUCT.md`, belongs to that tool. When a doc contradicts the code, humanize its wording only and tell the user; correcting it is their call.
 
 ### 4. Polish the README
 
