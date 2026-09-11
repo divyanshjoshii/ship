@@ -235,6 +235,8 @@ Do not wait for a step 5 trigger. The whole point of this mode is that those tri
 
 Run `palette.mjs`. List what exists: `README.md`, everything under `docs/`, any logo or app icon, the manifests (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`), and any schema file. Read the README and every doc in full before changing any of them.
 
+Build the code map too, since this mode skips step 4. Resolve `$CRG`, run the source-file check, and when `.code-review-graph/` is missing, build it and gitignore `.mcp.json`, all exactly as step 4 says. Then run `$CRG update --brief`. Skip `impact`, since there is no change to measure. With no `$CRG`, draw from the directory tree instead.
+
 ### 2. Add the diagrams that belong
 
 Using the table in step 5, add each diagram the project warrants and does not have. Draw only what the code shows: build the flowchart from `$CRG architecture` or the real directory tree, and the database diagram from the schema file itself. Never invent a component, a table or a relationship.
