@@ -20,7 +20,7 @@ When you type `/ship`, it works through seven steps:
 2. Fetches, and tells you if someone has pushed commits you don't have yet
 3. Shows what changed, flagging anything that looks unfinished
 4. Reports what your change affects, if the repo has a dependency graph built
-5. Writes or updates Mermaid diagrams when structure or the database schema changes, coloured to match your project
+5. Writes or updates Mermaid diagrams when structure or the database schema changes, coloured to match your project, and re-colours them whenever your project's colours change
 6. Drafts a commit message in your own voice and lets you edit it
 7. Asks before pushing, naming the exact remote and branch
 
@@ -82,7 +82,7 @@ Two things to know. It only affects commits made from now on, so anything alread
 
 It won't prompt you to install any of these mid-commit.
 
-Diagrams need no companion at all. Step 5 writes Mermaid, which GitHub draws on its own, and colours it from your project's CSS variables or logo.
+Diagrams need no companion at all. Step 5 writes Mermaid, which GitHub draws on its own, and colours it from your project's CSS variables, Tailwind config or logo. Change any colour and ship notices on the next push.
 
 ## Pairs well with
 
@@ -90,7 +90,7 @@ Diagrams need no companion at all. Step 5 writes Mermaid, which GitHub draws on 
 
 ## Requirements
 
-Git, and Claude Code. `gh` is only needed if you want it to create a repository for you.
+Git, and Claude Code. `gh` is only needed if you want it to create a repository for you. `palette.mjs` reads your project's colours using Node, which `npx skills add` already needs, so there is nothing extra to install.
 
 ## Licence
 

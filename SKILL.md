@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Review, commit and push work with every step confirmed first. Checks for a collaborator's incoming commits before pushing so clashes surface early, works out what a change affects, refreshes diagrams when structure moves, and writes commit messages in the user's own voice. Use when the user says ship, commit, push, or asks to save work to GitHub.
+description: Review, commit and push work with every step confirmed first. Checks for a collaborator's incoming commits before pushing so clashes surface early, works out what a change affects, keeps diagrams current and in the project's own colours, and writes commit messages in the user's own voice. Use when the user says ship, commit, push, or asks to save work to GitHub.
 argument-hint: "[docs] — omit for the full commit flow"
 ---
 
@@ -134,8 +134,9 @@ A diagram is needed when any one of these is true:
 - A database schema file changed: `*.sql`, `schema.prisma`, a migrations directory
 - Step 4 reported a change reaching across three or more modules
 - An existing diagram in `README.md` or `docs/` no longer matches what is there
+- `palette.mjs` lists a diagram as needing attention, because the project's colours changed since it was drawn. Nothing structural has to move for this one; see *Theme it from the project*.
 
-It is not needed for a bug fix, a documentation edit, a config tweak, a dependency version bump, or a change confined to one file. Most commits are in this group, so most runs skip this step.
+It is not needed for a bug fix, a documentation edit, a config tweak, a dependency version bump, or a change confined to one file, unless that change touched the project's colours. Most commits are in this group, so most runs skip this step.
 
 When step 4 built a graph, use it to answer the question rather than guessing:
 
@@ -162,14 +163,27 @@ Update a diagram in place. Never add a second diagram of the same thing.
 
 ### Theme it from the project
 
-Grey default boxes are the fallback, never the goal. Before drawing, find the project's colours, in this order:
+Grey default boxes are the fallback, never the goal. The colours come from the project itself, and they are **read fresh on every run**. Never copy colours out of an existing diagram: that diagram may be the very thing that is out of date.
 
-1. CSS custom properties such as `--primary`, `--secondary`, `--background` and `--chart-*` in `globals.css` or the theme file
-2. The Tailwind theme config
-3. `theme_color` and `background_color` in the PWA manifest
-4. The logo or app icon. Read the image and take its dominant colours.
+`palette.mjs` sits in this skill's base directory and does the reading. It needs only Node, which every install of this skill already has, since `npx skills add` cannot run without it. Run it from the repository root on every `/ship`, whether or not anything structural changed:
 
-Build the theme from what you find: a one-line `%%{init: {"theme": "base", "themeVariables": {...}}}%%` at the top of the block, plus `classDef` to colour nodes by role, such as client, server, auth and database. Leave an HTML comment beside the diagram naming where the colours came from, so the next update reuses them.
+```bash
+node "<this skill's base directory>/palette.mjs"
+```
+
+It reads the stylesheet's `:root` and `@theme` variables, colours set in `tailwind.config.*`, then the web manifest. It converts `oklch()`, `hsl()` and bare HSL values to hex, since Mermaid's colour maths only understands hex and rgb. It passes over a near-black or near-white `--primary`, which would vanish against one of GitHub's two backgrounds, and takes the next saturated colour instead. It picks text colours that stay readable on whatever they sit on. It reads project files and never runs them. It prints:
+
+- which files the colours came from
+- a **palette fingerprint**: an eight-character code made from every colour the project defines
+- the two lines every Mermaid block starts with, the `%%{init}%%` theme and a `%% palette <code>` stamp
+- `classDef` lines for colouring nodes by role, and `rect` colours for sequence diagrams
+- **every diagram in `README.md` and `docs/` that needs attention**, and what to do about each
+
+The stamp is how changes get caught. Change any colour in the project, even a single chart colour, and the fingerprint changes, so every diagram still carrying the old stamp gets listed. A listed diagram is a reason to run this step even when nothing else changed. Re-colour it in place: swap its `%%{init}%%` line, its stamp and its colours, and leave its structure alone. A diagram listed as matching but unstamped needs only the stamp line added. When writing a new diagram, use the printed lines as they are.
+
+When no colours turn up anywhere, read the logo or app icon, take its main colour and its background colour, and rerun with them: `palette.mjs --accent "#hex" --surface "#hex"`. With no logo either, use the neutral palette it prints and say so. If Node is somehow missing, do the same work by hand and keep text at a contrast ratio of at least 4.5 against whatever it sits on.
+
+Leave an HTML comment beside each diagram naming the files its colours came from, never the values, so the next run knows where to look.
 
 **Make it readable in both GitHub themes.** GitHub renders the page light for some readers and dark for others, and the diagram cannot tell which. Put every piece of text on a surface the diagram paints itself: filled nodes, `edgeLabelBackground`, and `rect` blocks around sequence messages. Text left on the bare page disappears in one of the two modes.
 
@@ -217,6 +231,7 @@ Degrade quietly. A missing tool is not a problem to raise.
 | `humanizer` | Write the message plainly and say so once |
 | `gh` | Use plain `git`; only repository creation needs `gh` |
 | A browser tool | Commit the diagram, and say it has not been rendered |
+| Node | Work out the colours by hand, as step 5 describes. Rare, since installing this skill needs Node |
 
 ## What this skill never does
 
