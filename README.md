@@ -20,7 +20,7 @@ When you type `/ship`, it works through seven steps:
 2. Fetches, and tells you if someone has pushed commits you don't have yet
 3. Shows what changed, flagging anything that looks unfinished
 4. Reports what your change affects, if the repo has a dependency graph built
-5. Offers to redraw diagrams, but only when you actually added structure
+5. Writes or updates Mermaid diagrams when structure or the database schema changes, coloured to match your project
 6. Drafts a commit message in your own voice and lets you edit it
 7. Asks before pushing, naming the exact remote and branch
 
@@ -78,10 +78,11 @@ Two things to know. It only affects commits made from now on, so anything alread
 | Tool | Adds |
 |---|---|
 | [code-review-graph](https://github.com/tirth8205/code-review-graph) | Step 4: what your change actually affects |
-| [archify](https://github.com/tt-a1i/archify) | Step 5: diagram regeneration |
 | [humanizer](https://github.com/blader/humanizer) | Step 6: commit messages that read like you wrote them |
 
 It won't prompt you to install any of these mid-commit.
+
+Diagrams need no companion at all. Step 5 writes Mermaid, which GitHub draws on its own, and colours it from your project's CSS variables or logo.
 
 ## Pairs well with
 

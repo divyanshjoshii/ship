@@ -129,10 +129,11 @@ A diagram is needed when any one of these is true:
   ```
 
   A count of zero means it is not a structural change.
-- A new module, package or entry point was added
+- A new module, package, route or entry point was added
 - A dependency was added or dropped
+- A database schema file changed: `*.sql`, `schema.prisma`, a migrations directory
 - Step 4 reported a change reaching across three or more modules
-- A diagram already exists in `README.md` or `docs/architecture.md` and no longer matches what is there
+- An existing diagram in `README.md` or `docs/` no longer matches what is there
 
 It is not needed for a bug fix, a documentation edit, a config tweak, a dependency version bump, or a change confined to one file. Most commits are in this group, so most runs skip this step.
 
@@ -142,14 +143,41 @@ When step 4 built a graph, use it to answer the question rather than guessing:
 $CRG architecture
 ```
 
-**When a diagram is needed, generate it rather than asking whether to.** Show the result before it is committed. Two cases:
+**When a diagram is needed, write or update it rather than asking whether to.** Show the result before it is committed.
 
-- The repository already has a diagram in `README.md` or `docs/architecture.md`. Redraw it so it matches reality.
-- It has no diagram at all and structure moved. Create one and put it in the README.
+### Mermaid, always
 
-Do not run this on an ordinary commit. A bug fix does not change the architecture, and generating a diagram every time is slow and trains the user to ignore it.
+Write every diagram as a Mermaid code block inside the markdown file. GitHub draws Mermaid natively, it diffs like text, and nobody needs anything installed to see it.
 
-**Pick the right tool for the picture.** A small flow diagram inside a README is usually a mermaid block: GitHub renders mermaid natively, so nobody needs anything installed to see it. Invoke the `archify` skill when the diagram is a real architecture, dataflow, sequence or lifecycle picture that earns the validation and the export formats. Say which you chose and why.
+**Never commit an HTML diagram or a screenshot as the repository's diagram.** GitHub shows an HTML file as source code, and a screenshot goes stale without anyone noticing.
+
+| What changed | Diagram | Where it goes |
+|---|---|---|
+| Folders, modules, routes | `flowchart` | `README.md` |
+| A schema file | `erDiagram` | `docs/architecture.md` |
+| A request or load path | `sequenceDiagram`, with `par` blocks for calls that run together | `docs/architecture.md` |
+| A status that moves through stages | `stateDiagram-v2` | `docs/architecture.md` |
+
+Update a diagram in place. Never add a second diagram of the same thing.
+
+### Theme it from the project
+
+Grey default boxes are the fallback, never the goal. Before drawing, find the project's colours, in this order:
+
+1. CSS custom properties such as `--primary`, `--secondary`, `--background` and `--chart-*` in `globals.css` or the theme file
+2. The Tailwind theme config
+3. `theme_color` and `background_color` in the PWA manifest
+4. The logo or app icon. Read the image and take its dominant colours.
+
+Build the theme from what you find: a one-line `%%{init: {"theme": "base", "themeVariables": {...}}}%%` at the top of the block, plus `classDef` to colour nodes by role, such as client, server, auth and database. Leave an HTML comment beside the diagram naming where the colours came from, so the next update reuses them.
+
+**Make it readable in both GitHub themes.** GitHub renders the page light for some readers and dark for others, and the diagram cannot tell which. Put every piece of text on a surface the diagram paints itself: filled nodes, `edgeLabelBackground`, and `rect` blocks around sequence messages. Text left on the bare page disappears in one of the two modes.
+
+### Check it renders
+
+A Mermaid block with a syntax error shows on GitHub as a raw code box. When a browser tool is available, render each changed block once on a light background and once on a dark one before committing. When none is available, say plainly that the diagram has not been rendered.
+
+Run the `humanizer` skill over any prose written around a diagram.
 
 `/ship docs` runs this step alone, for when the user wants documentation refreshed without committing code.
 
@@ -186,9 +214,9 @@ Degrade quietly. A missing tool is not a problem to raise.
 | Missing | Do |
 |---|---|
 | `code-review-graph` | Skip step 4 |
-| `archify` | Use a mermaid block for step 5 instead |
 | `humanizer` | Write the message plainly and say so once |
 | `gh` | Use plain `git`; only repository creation needs `gh` |
+| A browser tool | Commit the diagram, and say it has not been rendered |
 
 ## What this skill never does
 
@@ -199,11 +227,13 @@ Degrade quietly. A missing tool is not a problem to raise.
 - Edit, rebase or amend a collaborator's commits
 - Create a pull request, issue or comment without being asked
 - Change repository settings
+- Commit an HTML file or a screenshot as the repository's diagram
 
 ## Delegate rather than reimplement
 
 - Prose in the user's voice → `humanizer`
-- Diagrams → `archify`
+- Diagrams inside the repository → Mermaid, written inline, no skill needed
+- Standalone diagrams for slides or sharing, outside the repository → `archify`
 - What a change affects → `code-review-graph`
 - An in-progress merge conflict → `resolving-merge-conflicts`
 - A review of the code itself → `/security-review` or `/code-review`
