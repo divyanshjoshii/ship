@@ -24,7 +24,7 @@ When you type `/ship`, it works through seven steps:
 6. Drafts a commit message in your own voice and lets you edit it
 7. Asks before pushing, naming the exact remote and branch
 
-`/ship docs` runs step 5 alone, for refreshing documentation without committing code.
+`/ship docs` is for a project that existed before ship did. It gives the docs a one-time makeover: diagrams wherever the code supports one, in your project's colours, a logo header and badges on the README, and prose that reads like a person wrote it. Files written for a tool to read, like `CLAUDE.md` or a prompt file, are left alone. You see the full diff first, nothing is deleted, and nothing is committed without a yes. Running it twice changes nothing the second time.
 
 ## What it won't do
 

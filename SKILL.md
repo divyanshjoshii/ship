@@ -1,7 +1,7 @@
 ---
 name: ship
-description: Review, commit and push work with every step confirmed first. Checks for a collaborator's incoming commits before pushing so clashes surface early, works out what a change affects, keeps diagrams current and in the project's own colours, and writes commit messages in the user's own voice. Use when the user says ship, commit, push, or asks to save work to GitHub.
-argument-hint: "[docs] — omit for the full commit flow"
+description: Review, commit and push work with every step confirmed first. Checks for a collaborator's incoming commits before pushing so clashes surface early, works out what a change affects, keeps diagrams current and in the project's own colours, and writes commit messages in the user's own voice. `/ship docs` gives an older project a one-time docs makeover. Use when the user says ship, commit, push, asks to save work to GitHub, or wants an existing project's README and docs brought up to standard.
+argument-hint: "[docs] to give an older project its one-time docs makeover; omit for the normal commit flow"
 ---
 
 # Ship
@@ -131,7 +131,7 @@ A diagram is needed when any one of these is true:
   A count of zero means it is not a structural change.
 - A new module, package, route or entry point was added
 - A dependency was added or dropped
-- A database schema file changed: `*.sql`, `schema.prisma`, a migrations directory
+- A database schema changed: `*.sql`, `schema.prisma`, a migrations directory, or a source file that defines tables, such as `CREATE TABLE` strings or ORM models. Find them with `git grep -lE "CREATE TABLE|models\.Model|__tablename__|@Entity|sqliteTable|pgTable|mysqlTable"`.
 - Step 4 reported a change reaching across three or more modules
 - An existing diagram in `README.md` or `docs/` no longer matches what is there
 - `palette.mjs` lists a diagram as needing attention, because the project's colours changed since it was drawn. Nothing structural has to move for this one; see *Theme it from the project*.
@@ -160,6 +160,8 @@ Write every diagram as a Mermaid code block inside the markdown file. GitHub dra
 | A status that moves through stages | `stateDiagram-v2` | `docs/architecture.md` |
 
 Update a diagram in place. Never add a second diagram of the same thing.
+
+Keep diagrams narrow enough to read at README width. When one table has more than four children, put `direction LR` on the line after `erDiagram` so the children stack down the page instead of spreading off its side; Mermaid 10.9 and 11 both render it. GitHub draws each relationship label on a half-transparent chip that turns grey in whichever GitHub theme is opposite the diagram's surface, and no theme colour fixes it. So leave a label empty (`: ""`) when it would only repeat the key column the child table already lists. A verb that tells the reader something the key does not, like `owns` or `default for`, is worth its chip. A flowchart group holding a single node adds an empty frame, so write the group's name into the node's label instead.
 
 ### Theme it from the project
 
@@ -193,7 +195,7 @@ A Mermaid block with a syntax error shows on GitHub as a raw code box. When a br
 
 Run the `humanizer` skill over any prose written around a diagram.
 
-`/ship docs` runs this step alone, for when the user wants documentation refreshed without committing code.
+`/ship docs` runs the one-time makeover further down, which does not wait for these triggers.
 
 ## Step 6 — Write the message
 
@@ -220,6 +222,50 @@ Commit only what was agreed. Then, separately:
 Name the remote and the branch. "Push?" alone is not enough — the user should see where it is going.
 
 After pushing, report what landed and where, with the branch name.
+
+## `/ship docs` — the one-time makeover
+
+For a project whose docs were never set up properly: a plain README, no diagrams, prose nobody edited. Run it once. After that, ordinary `/ship` keeps things current through step 5.
+
+It runs steps 1 and 2 as usual, does the work below in place of looking at code changes, then shows everything (step 3), writes the message (step 6) and asks before pushing (step 7). **It commits nothing on its own.**
+
+Do not wait for a step 5 trigger. The whole point of this mode is that those triggers never fired.
+
+### 1. Take stock
+
+Run `palette.mjs`. List what exists: `README.md`, everything under `docs/`, any logo or app icon, the manifests (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`), and any schema file. Read the README and every doc in full before changing any of them.
+
+### 2. Add the diagrams that belong
+
+Using the table in step 5, add each diagram the project warrants and does not have. Draw only what the code shows: build the flowchart from `$CRG architecture` or the real directory tree, and the database diagram from the schema file itself. Never invent a component, a table or a relationship.
+
+- **Flowchart:** in the README, when the project has source code and the README has no diagram
+- **Database diagram:** when the project defines tables anywhere, by the same search step 5 uses, and no `erDiagram` appears anywhere in the docs. Put it in `docs/architecture.md` when that file exists, otherwise under a "Data model" heading in the README.
+- **Sequence or state diagram:** only when the code has an obvious request path or status field worth showing. When unsure, leave it out.
+
+Theme and stamp every diagram, new and old, with what `palette.mjs` prints.
+
+### 3. Humanize the prose
+
+Invoke the `humanizer` skill in file mode on `README.md` and the prose files in `docs/`. It changes prose only. Code blocks, commands, paths and link targets stay exactly as they are, and it must not add a claim, number or feature that was not already there.
+
+Leave alone the files whose job is to be obeyed or kept as written: `CLAUDE.md`, `AGENTS.md`, `docs/standards.md`, `docs/changes.md` (append-only history), `docs/handoffs/`, `LICENSE`, anything under `.github/`, and prompt files or anything else written for a tool or model to read, such as `docs/IMAGE-PROMPTS.md`. Rewording a prompt changes what it produces.
+
+### 4. Polish the README
+
+Add only what traces back to the project itself:
+
+- **A header:** the logo or app icon centred above the title, when one exists in the repository. Prefer PNG or SVG.
+- **Badges:** one per major piece of the stack, read from the manifest with real versions, from `img.shields.io`, coloured with the palette: `color` is the accent, `labelColor` is whichever of the surface and text colours is darker, and `logoColor` is white.
+- **Callouts:** turn an existing "Note:", "Warning:" or "Important:" line into a GitHub alert such as `> [!NOTE]`. Never write a new warning.
+
+A new section is allowed only when every line in it traces to the code, the existing README or the commit history. Never invent a feature, a number or a claim.
+
+### 5. Check, then hand over
+
+Render every new or changed diagram on a light and a dark background, as step 5 describes. Then carry on with step 3 and show the whole docs diff before anything is committed.
+
+Running it again later only fixes what drifted. Never add a second header, a second row of badges or a second copy of a diagram. Never delete a file, including old HTML diagrams or screenshots: list them and ask.
 
 ## When something is missing
 

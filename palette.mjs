@@ -207,24 +207,67 @@ function build(args) {
   const get = name => toHex(vars[name], vars);
   const visible = c => PAGES.every(page => contrast(c, page) >= 1.8);
 
-  const candidates = [toHex(args.accent),
+  // Semantic names win when a project uses them (--primary, --card, --foreground). Projects with
+  // their own names (--c-ink, --color-terracotta) fall back to what the defined are: how strong,
+  // how light, and whether they carry hover or press variants the way an action colour does.
+  const PREFIX = new Set(["c", "color"]);
+  const VARIANT = new Set(["hover", "press", "pressed", "active", "fill", "text", "soft", "line", "edge", "deep",
+    "ink", "solid", "muted", "faint", "raised", "sunken", "strong", "pale", "foreground", "light", "dark"]);
+  const STATE = ["hover", "press", "pressed", "active", "fill"];
+  const STATUS = ["danger", "error", "destructive", "warn", "warning", "ok", "success", "info", "critical"];
+  const NEUTRALISH = ["rule", "line", "border", "tint", "shadow", "ring", "focus", "overlay", "scrim"];
+  const words = name => { const w = name.replace(/^--/, "").split("-"); return w.length > 1 && PREFIX.has(w[0]) ? w.slice(1) : w; };
+  const isVariant = name => { const w = words(name); return w[0] === "on" || (w.length > 1 && VARIANT.has(w[w.length - 1])); };
+  const hints = (name, list) => words(name).some(w => list.includes(w));
+  const chroma = h => { const c = channels(h); return (Math.max(...c) - Math.min(...c)) / 255; };
+  const stateVariants = name => {
+    const stem = words(name).join("-");
+    return Object.keys(vars).filter(k => { const w = words(k);
+      return w.length > 1 && STATE.includes(w[w.length - 1]) && w.slice(0, -1).join("-") === stem; }).length;
+  };
+  const defined = Object.entries(vars).filter(([n]) => !isVariant(n)).map(([n, v]) => [n, toHex(v, vars)]).filter(([, h]) => h);
+
+  // Accent: the old ordered list first, unchanged; then score every colour; then anything visible.
+  const listed = [toHex(args.accent),
     ...["--primary", "--ring", "--brand", "--chart-1", "--chart-2", "--chart-3", "--secondary"].map(get),
     toHex(manifest.found.theme_color)].filter(Boolean);
-  let accent = candidates.find(c => visible(c) && saturation(c) >= 0.25) || candidates.find(visible) || null;
-  let surface = toHex(args.surface) || get("--card") || get("--background") || toHex(manifest.found.background_color);
+  const accentScore = ([n, h]) => (hints(n, ["primary", "brand", "accent", "action", "cta", "main"]) ? 10 : 0)
+    + 3 * stateVariants(n) + 4 * chroma(h) - (hints(n, STATUS) ? 8 : 0) - (hints(n, NEUTRALISH) ? 8 : 0);
+  const scored = defined.filter(([, h]) => visible(h) && chroma(h) >= 0.1).sort((a, b) => accentScore(b) - accentScore(a));
+  let accent = listed.find(c => visible(c) && saturation(c) >= 0.25) || scored[0]?.[1] || listed.find(visible) || null;
+
+  // Surface: the old names first, then surface-like names, then the manifest, then the lightest calm colour.
+  const SURFACE_RANK = { card: 13, surface: 13, panel: 12, background: 11, bg: 11, ground: 10, paper: 10, canvas: 10, base: 9, page: 9 };
+  const surfaceHint = n => Math.max(0, ...words(n).map(w => SURFACE_RANK[w] || 0));
+  const calm = defined.filter(([n, h]) => chroma(h) < 0.15 && !hints(n, NEUTRALISH));
+  let surface = toHex(args.surface) || get("--card") || get("--background")
+    || calm.filter(([n]) => surfaceHint(n) > 0).sort((a, b) => surfaceHint(b[0]) - surfaceHint(a[0]))[0]?.[1]
+    || toHex(manifest.found.background_color)
+    || [...calm].sort((a, b) => luminance(b[1]) - luminance(a[1]))[0]?.[1] || null;
   const neutral = !(accent || surface);
   accent ||= NEUTRAL.accent;
   surface ||= NEUTRAL.surface;
-  const text = readableOn(surface, get("--foreground"));
+
+  const inkLike = defined.filter(([n]) => hints(n, ["foreground", "fg", "text", "ink", "content", "body"]))
+    .map(([, h]) => h).sort((a, b) => contrast(b, surface) - contrast(a, surface))[0];
+  const text = readableOn(surface, get("--foreground") || inkLike);
 
   const roles = [accent];
-  for (const name of ["--brand", "--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5", "--secondary", "--destructive"]) {
-    const c = get(name);
-    if (c && saturation(c) >= 0.25 && contrast(c, surface) >= 1.8 && roles.every(r => distinct(c, r))) roles.push(c);
-  }
+  const consider = (c, { sat = 0.25, apart = 90 } = {}) => {
+    if (c && roles.length < 5 && saturation(c) >= sat && contrast(c, surface) >= 1.8 &&
+        roles.every(r => channels(c).reduce((sum, x, i) => sum + Math.abs(x - channels(r)[i]), 0) > apart)) roles.push(c);
+  };
+  for (const name of ["--brand", "--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5", "--secondary", "--destructive"]) consider(get(name));
+  // Projects with their own names: their other strong colours, strongest first. Muted palettes such as
+  // earth tones get a second, gentler pass before any colour is invented. Text and surface colours never
+  // become roles.
+  const pool = [...defined].filter(([n]) => !hints(n, NEUTRALISH) && !hints(n, ["foreground", "fg", "text", "ink", "content", "body"]) && !surfaceHint(n))
+    .sort((a, b) => chroma(b[1]) - chroma(a[1]));
+  for (const [, h] of pool) if (chroma(h) >= 0.1) consider(h);
+  for (const [, h] of pool) if (chroma(h) >= 0.05) consider(h, { sat: 0.1, apart: 40 });
   let [hue, sat, lum] = rgbToHsl(channels(accent).map(x => x / 255));
   const darkSurface = luminance(surface) < 0.2;
-  while (roles.length < 5) { // too few distinct colours: rotate the accent's hue
+  while (roles.length < 5) { // still too few distinct defined: rotate the accent's hue
     hue = (hue + 0.2) % 1;
     let c = fromUnit(hslToRgb(hue, sat, lum));
     if (contrast(c, surface) < 3) c = fromUnit(hslToRgb(hue, sat, darkSurface ? Math.max(lum, 0.62) : Math.min(lum, 0.42)));
@@ -305,8 +348,8 @@ function main() {
   const out = [];
   out.push(`Colours from: ${pal.sources.join(", ") || "nothing found"}`);
   if (pal.neutral) {
-    out.push("  No colours in the stylesheet, Tailwind config or manifest. Read the logo and rerun with");
-    out.push("  --accent and --surface, or use this neutral palette and say so.");
+    out.push(pal.sources.length ? "  Those files define no colour it could use." : "  No stylesheet, Tailwind config or manifest colours found.");
+    out.push("  Read the logo and rerun with --accent and --surface, or use this neutral palette and say so.");
   }
   out.push(`Fingerprint: palette ${pal.fingerprint}`);
   out.push(`surface ${pal.surface}   text ${pal.text} (${contrast(pal.text, pal.surface).toFixed(1)}:1)   accent ${pal.accent}`);
