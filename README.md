@@ -2,7 +2,7 @@
 
 A Claude Code skill for getting work onto GitHub without surprises.
 
-You see every step before it happens, and nothing reaches GitHub until you say yes to that specific push.
+You see every step before it happens, and nothing reaches GitHub until you say yes to that specific push. It reads GitHub whenever it needs to, and asks before anything that writes to it.
 
 ## Why
 
@@ -16,22 +16,24 @@ This skill handles both. It shows you the diff before staging, names the files a
 
 | Command | Does |
 |---|---|
-| `/ship` | Review, commit and push, with every step shown first |
+| `/ship` | Review, commit, push and open a pull request, with every step shown first |
+| `/ship inbox` | What changed on GitHub since you last looked. Reads only |
 | `/ship docs` | A one-time docs makeover for a project that existed before ship did |
 
-Asking in plain words works too. "Commit this" or "push my work" starts the same flow.
+Asking in plain words works too. "Commit this", "push my work" or "anything new on GitHub?" starts the matching flow.
 
 ## What it does
 
-When you type `/ship`, it works through seven steps:
+When you type `/ship`, it works through eight steps:
 
 1. Reads your remotes to work out whether you're on a shared repo or a fork
-2. Fetches, and tells you if someone has pushed commits you don't have yet
+2. Fetches, and tells you if someone has pushed commits you don't have yet. If your feature branch has fallen behind the default branch, it offers a rebase with a backup branch made first
 3. Shows what changed, flagging anything that looks unfinished
-4. Maps your code the first time it runs, without asking, then reports what each change affects
+4. Maps your code the first time it runs, without asking, then reports in a few lines what each change affects
 5. Writes or updates Mermaid diagrams when structure or the database schema changes, coloured to match your project, and re-colours them whenever your project's colours change
-6. Drafts a commit message in your own voice and lets you edit it
-7. Asks before pushing, naming the exact remote and branch
+6. Puts the work on a branch of its own when your project uses pull requests
+7. Drafts a commit message in your own voice and lets you edit it
+8. Asks before pushing, naming the exact remote and branch, and asks again before opening the pull request, which you merge yourself
 
 <!-- Diagram colours: ship's neutral palette, since this repository has no stylesheet or logo. -->
 
@@ -48,21 +50,37 @@ flowchart TD
     E --> F{"5 · Structure, schema<br/>or colours changed?"}
     F -->|yes| G["Draw or re-colour<br/>the diagrams"]
     F -->|no| H
-    G --> H["6 · Draft the message,<br/>humanize it, you edit"]
-    H --> I["7 · Commit"]
-    I --> J{"Push to origin/main?"}
-    J -->|yes| K(["On GitHub"])
+    G --> H["6 · Pick the branch<br/>7 · Draft the message, you edit"]
+    H --> I["8 · Commit"]
+    I --> J{"Push?"}
+    J -->|yes| P{"Pull request<br/>flow?"}
     J -->|no| L(["Stays on your machine"])
+    P -->|no| K(["On GitHub"])
+    P -->|yes| Q{"Open the PR?"}
+    Q -->|yes| R(["PR open,<br/>you merge it"])
+    Q -->|no| K
 
     classDef role1 fill:#E3E1FB,stroke:#4F46E5,color:#0B0B0B
     classDef role2 fill:#FBE1F4,stroke:#E546BC,color:#0B0B0B
     classDef role4 fill:#E3F4DA,stroke:#52BC1A,color:#0B0B0B
     classDef role5 fill:#DAF4F1,stroke:#1ABCA5,color:#0B0B0B
     class A,B,C2,D,E,G,H,I role1
-    class C,F,J role2
-    class K role4
+    class C,F,J,P,Q role2
+    class K,R role4
     class L role5
 ```
+
+## Pull requests and rebasing
+
+When your project works through pull requests (`groundwork` records this, or ship asks once), each change gets its own branch, named like `feat/login-page`. Ship pushes it and opens the pull request, asking before each. Merging stays with you, on GitHub, where Squash and merge leaves one commit per pull request on the default branch.
+
+When the default branch moves ahead of your branch, ship offers a rebase, and only on a branch nobody else pushes to. It makes a backup branch first, stops at the first conflict, and pushes the result with `--force-with-lease`, which refuses if anyone pushed to that branch in the meantime.
+
+## The inbox
+
+`/ship inbox` answers "what happened on GitHub while I was away?" in about a dozen lines. It covers reviews someone asked of you, changes requested on your pull requests, failing checks and approvals, pull requests of yours that got merged, and new issues and pull requests other people opened on your repositories.
+
+It reads titles and counts and skips comment text, because anyone can comment on a public repository, including with a message addressed to your agent. It writes nothing to GitHub and leaves your notifications unread. It remembers when it last ran, so the next report starts there.
 
 ## The docs makeover
 
@@ -73,11 +91,12 @@ Files written for a tool to read stay as they are: `CLAUDE.md`, prompt files, or
 ## What it won't do
 
 - Push without a yes for that specific push
+- Merge a pull request, or switch on auto-merge
 - Push to `upstream`, because a fork's original belongs to someone else
 - Force-push or edit a workflow without a typed confirmation
 - Commit a file you haven't seen listed
-- Rewrite a collaborator's commits
-- Open a pull request or issue unless asked
+- Rebase the default branch, a shared branch, or a collaborator's commits
+- Open a pull request without asking, or open an issue or post a comment you didn't ask for
 - Change repository settings
 
 ## Install
@@ -90,7 +109,15 @@ The `-g` makes it available in every project, including ones you haven't created
 
 ## Commit trailers
 
-Coding agents commonly append a `Co-Authored-By` trailer to commit messages. Removing it is a git setting rather than something this skill controls. A `commit-msg` hook strips the line locally, on every commit, whatever wrote it.
+Coding agents commonly append a `Co-Authored-By` trailer to commit messages. Removing it is a setting rather than something this skill controls.
+
+In Claude Code, add this to `~/.claude/settings.json` and it stops adding the trailer, and the line in pull request descriptions, at the source:
+
+```json
+"attribution": { "commit": "", "pr": "" }
+```
+
+To cover every tool at once, a `commit-msg` hook strips the line locally, on every commit, whatever wrote it. It removes every co-author line, so a human pair's credit goes too.
 
 Run these two once. Windows users want Git Bash, not PowerShell.
 
@@ -121,8 +148,10 @@ Two things to know. It only affects commits made from now on, so anything alread
 
 | Tool | Adds |
 |---|---|
-| [code-review-graph](https://github.com/tirth8205/code-review-graph) | A map of your code, built once without asking. Step 4 uses it to report what a change affects, and the makeover draws its architecture diagram from it |
-| [humanizer](https://github.com/blader/humanizer) | Commit messages and docs that read like you wrote them |
+| [GitHub CLI](https://cli.github.com) | Pull requests and `/ship inbox`. Without it, ship commits and pushes with plain git |
+| [code-review-graph](https://github.com/tirth8205/code-review-graph) | A map of your code, built once without asking. Step 4 uses it to report what a change affects, and the makeover draws its architecture diagram from it. `code-map.mjs` boils its JSON down to a dozen lines, so the map costs little context |
+| [humanizer](https://github.com/blader/humanizer) | Pull request descriptions and docs that read like you wrote them |
+| [RTK](https://github.com/rtk-ai/rtk) | Shorter command output everywhere. Ship asks RTK for the full output wherever it parses or scans for secrets |
 
 It won't prompt you to install any of these mid-commit.
 
@@ -134,7 +163,7 @@ Diagrams need no companion at all. Step 5 writes Mermaid, which GitHub draws on 
 
 ## Requirements
 
-Git, and Claude Code. `gh` is only needed if you want it to create a repository for you. `palette.mjs` reads your project's colours using Node, which `npx skills add` already needs, so there is nothing extra to install.
+Git, and Claude Code. `gh` is needed for pull requests, the inbox, and creating a repository. `palette.mjs` and `code-map.mjs` run on Node, which `npx skills add` already needs, so there is nothing extra to install.
 
 ## Licence
 

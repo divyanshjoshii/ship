@@ -4,6 +4,7 @@
 // Run from the repository root:
 //   node palette.mjs
 //   node palette.mjs --accent "#7c3aed" --surface "#ffffff"    (colours read off a logo)
+//   node palette.mjs --quiet    one line when every diagram is current, otherwise only what needs attention
 //
 // Reads CSS custom properties in :root and @theme blocks, colours in tailwind.config.*, then the
 // web manifest. Understands hex, rgb(), hsl(), oklch() and shadcn-style bare HSL triples.
@@ -340,10 +341,19 @@ function main() {
   const args = {};
   for (let i = 2; i < process.argv.length; i++) {
     const a = process.argv[i];
-    if (a === "--help" || a === "-h") { console.log(readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(1, 10).join("\n")); return; }
+    if (a === "--help" || a === "-h") { console.log(readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(1, 11).join("\n")); return; }
     if (a === "--accent" || a === "--surface") args[a.slice(2)] = process.argv[++i];
+    if (a === "--quiet") args.quiet = true;
   }
   const pal = build(args);
+  if (args.quiet) {
+    const report = review(pal);
+    console.log(report.length
+      ? [`palette ${pal.fingerprint}: ${report.length} diagram(s) need attention`, ...report.map(l => "  " + l),
+         "Run palette.mjs without --quiet for the theme lines."].join("\n")
+      : `palette ${pal.fingerprint}: every diagram is current`);
+    return;
+  }
   const rgb = h => `rgb(${channels(h).join(", ")})`;
   const out = [];
   out.push(`Colours from: ${pal.sources.join(", ") || "nothing found"}`);
